@@ -60,6 +60,9 @@ class RouteResponseTests(APITestCase):
 		)
 
 		self.assertEqual(response.status_code, 200)
+		self.assertEqual(optimize.call_count, 1)
+		self.assertEqual(optimize.call_args[0][0], candidates)
+		self.assertAlmostEqual(optimize.call_args[0][1], 790.4, places=5)
 		self.assertEqual(response.data, {
 			'start': {
 				'address': 'New York, NY',
@@ -91,3 +94,14 @@ class RouteResponseTests(APITestCase):
 				'cost': 65.4,
 			}],
 		})
+
+	def test_route_transformer_uses_aeqd(self):
+		from shapely.geometry import LineString
+		from services.geometry_service import _route_transformer
+
+		route = LineString([(-74.006, 40.7128), (-87.6298, 41.8781)])
+		transformer = _route_transformer(route)
+		proj_string = transformer.target_crs.to_proj4()
+		self.assertIn('+proj=aeqd', proj_string)
+		self.assertIn('+units=m', proj_string)
+

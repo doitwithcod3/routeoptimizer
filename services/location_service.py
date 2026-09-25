@@ -14,16 +14,12 @@ class LocationResolutionError(Exception):
 
 
 def resolve_location(location: str) -> tuple[float, float]:
-    """Resolve an address from the imported fuel-station data."""
+    """Resolve an address from the imported fuel-station data or ORS geocoding."""
     station, canonical_address = _find_station_address(location)
-    if station is None:
-        raise LocationResolutionError(
-            'Location must match an address from the imported fuel data'
-        )
-
-    if station.latitude != 0 or station.longitude != 0:
+    if station is not None and (station.latitude != 0 or station.longitude != 0):
         return float(station.latitude), float(station.longitude)
 
+    address_to_geocode = canonical_address or location.strip()
     api_key = os.getenv('ORS_API_KEY')
     if not api_key:
         raise LocationResolutionError(
@@ -33,7 +29,7 @@ def resolve_location(location: str) -> tuple[float, float]:
     try:
         response = httpx.get(
             ORS_GEOCODE_URL,
-            params={'api_key': api_key, 'text': canonical_address, 'size': 1},
+            params={'api_key': api_key, 'text': address_to_geocode, 'size': 1},
             timeout=10.0,
         )
     except httpx.TimeoutException as exc:
@@ -53,7 +49,7 @@ def resolve_location(location: str) -> tuple[float, float]:
         longitude, latitude = response.json()['features'][0]['geometry']['coordinates']
         return float(latitude), float(longitude)
     except (IndexError, KeyError, TypeError, ValueError) as exc:
-        raise LocationResolutionError(f'Location not found: {canonical_address}') from exc
+        raise LocationResolutionError(f'Location not found: {address_to_geocode}') from exc
 
 
 def _find_station_address(location: str):

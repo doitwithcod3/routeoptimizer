@@ -75,8 +75,8 @@ def find_stations_near_route(
 
 
 def _route_transformer(route: LineString) -> Transformer:
-    """Create a metric WGS84-to-local-UTM transformer for the route."""
-    longitude, latitude = route.centroid.coords[0]
-    zone = min(60, max(1, math.floor((longitude + 180) / 6) + 1))
-    epsg = (32600 if latitude >= 0 else 32700) + zone
-    return Transformer.from_crs('EPSG:4326', f'EPSG:{epsg}', always_xy=True)
+    """Create a metric WGS84-to-AEQD transformer centered on the route."""
+    centroid = route.centroid
+    longitude, latitude = centroid.x, centroid.y
+    proj_string = f"+proj=aeqd +lat_0={latitude} +lon_0={longitude} +datum=WGS84 +units=m"
+    return Transformer.from_crs('EPSG:4326', proj_string, always_xy=True)

@@ -24,8 +24,41 @@ def normalize_address(address, city, state):
     return f'{address.strip()}, {city.strip()}, {state.strip()}, USA'.lower()
 
 
-def mock_geocode(address):
-    """Return placeholder coordinates until a real geocoding service is added."""
+_CITY_COORDINATES_CACHE = None
+
+
+def _load_city_cache():
+    global _CITY_COORDINATES_CACHE
+    if _CITY_COORDINATES_CACHE is not None:
+        return _CITY_COORDINATES_CACHE
+    _CITY_COORDINATES_CACHE = {}
+    cities_path = (
+        Path(__file__).resolve().parent.parent.parent.parent
+        / 'resources'
+        / 'us_cities.csv'
+    )
+    if cities_path.is_file():
+        with cities_path.open('r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                key = (
+                    row['CITY'].strip().upper(),
+                    row['STATE_CODE'].strip().upper(),
+                )
+                _CITY_COORDINATES_CACHE[key] = (
+                    Decimal(row['LATITUDE']),
+                    Decimal(row['LONGITUDE']),
+                )
+    return _CITY_COORDINATES_CACHE
+
+
+def mock_geocode(address, city='', state=''):
+    """Resolve coordinates from city database or return placeholder."""
+    cache = _load_city_cache()
+    if city and state:
+        key = (city.strip().upper(), state.strip().upper())
+        if key in cache:
+            return cache[key]
     return Decimal('0.000000'), Decimal('0.000000')
 
 
@@ -78,7 +111,9 @@ class Command(BaseCommand):
 
                 normalized_address = normalize_address(address, city, state)
                 if normalized_address not in geocoded_addresses:
-                    geocoded_addresses[normalized_address] = mock_geocode(normalized_address)
+                    geocoded_addresses[normalized_address] = mock_geocode(
+                        normalized_address, city, state
+                    )
                 latitude, longitude = geocoded_addresses[normalized_address]
 
                 station = FuelStation(

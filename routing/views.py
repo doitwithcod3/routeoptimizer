@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from services.fuel_optimizer import MAX_RANGE_MILES, MPG, optimize_fuel_stops
-from services.geometry_service import METRES_PER_MILE, find_stations_near_route
+from services.geometry_service import find_stations_near_route
 from services.location_service import LocationResolutionError, resolve_location
 from services.routing_service import RoutingServiceError, get_route
 
@@ -33,7 +33,11 @@ def route(request):
 		route_data = get_route(start_coordinates, finish_coordinates)
 		route_coordinates = route_data['geometry']['coordinates']
 		candidates = find_stations_near_route(route_coordinates)
-		route_distance_miles = route_data['distance'] / METRES_PER_MILE
+		route_distance_miles = route_data['distance'] / 1609.344
+		for candidate in candidates:
+			candidate['route_position_miles'] = min(
+				candidate['route_position_miles'], route_distance_miles
+			)
 		optimization = optimize_fuel_stops(
 			candidates,
 			route_distance_miles,
