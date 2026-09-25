@@ -61,14 +61,17 @@ def find_stations_near_route(
             nearby_stations.append(
                 {
                     'station': station,
-                    'position_miles': projected_route.project(projected_point)
+                    'route_position_miles': projected_route.project(projected_point)
                     / METRES_PER_MILE,
                     'distance_from_route_miles': route_distance_metres
                     / METRES_PER_MILE,
                 }
             )
 
-    return sorted(nearby_stations, key=lambda candidate: candidate['position_miles'])
+    return sorted(
+        nearby_stations,
+        key=lambda candidate: candidate['route_position_miles'],
+    )
 
 
 def _route_transformer(route: LineString) -> Transformer:

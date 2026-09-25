@@ -27,7 +27,7 @@ def optimize_fuel_stops(
 
     candidates = sorted(
         (_station_details(candidate) for candidate in stations),
-        key=lambda candidate: candidate['position_miles'],
+        key=lambda candidate: candidate['route_position_miles'],
     )
     _validate_stations(candidates, route_distance_miles)
 
@@ -37,13 +37,13 @@ def optimize_fuel_stops(
     recommended_stops = []
 
     for index, candidate in enumerate(candidates):
-        position = candidate['position_miles']
+        position = candidate['route_position_miles']
         fuel -= (position - current_position) / _MILES_PER_GALLON
         current_position = position
 
         next_cheaper = _next_cheaper_reachable(candidates, index)
         if next_cheaper is not None:
-            target_position = next_cheaper['position_miles']
+            target_position = next_cheaper['route_position_miles']
             gallons_to_buy = max(
                 Decimal('0'),
                 (target_position - position) / _MILES_PER_GALLON - fuel,
@@ -74,7 +74,7 @@ def optimize_fuel_stops(
         recommended_stops.append(
             {
                 'station': candidate['station'],
-                'position_miles': float(position),
+                'route_position_miles': float(position),
                 'gallons_purchased': gallons_to_buy,
                 'price_per_gallon': price,
                 'cost': stop_cost,
@@ -94,7 +94,7 @@ def _station_details(candidate: dict[str, Any]) -> dict[str, Any]:
     station = candidate['station']
     return {
         'station': station,
-        'position_miles': Decimal(str(candidate['position_miles'])),
+        'route_position_miles': Decimal(str(candidate['route_position_miles'])),
         'price': Decimal(str(station.retail_price)),
     }
 
@@ -102,7 +102,9 @@ def _station_details(candidate: dict[str, Any]) -> dict[str, Any]:
 def _next_cheaper_reachable(candidates, current_index):
     current = candidates[current_index]
     for candidate in candidates[current_index + 1:]:
-        distance = candidate['position_miles'] - current['position_miles']
+        distance = (
+            candidate['route_position_miles'] - current['route_position_miles']
+        )
         if distance > MAX_RANGE_MILES:
             break
         if candidate['price'] < current['price']:
@@ -113,7 +115,7 @@ def _next_cheaper_reachable(candidates, current_index):
 def _validate_stations(candidates, route_distance_miles):
     previous_position = Decimal('0')
     for candidate in candidates:
-        position = candidate['position_miles']
+        position = candidate['route_position_miles']
         if position < 0 or position > Decimal(str(route_distance_miles)):
             raise ValueError('Station positions must fall within the route')
         if position < previous_position:
